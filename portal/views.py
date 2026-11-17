@@ -7,7 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Table,TableStyle
+from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Table,TableStyle,Image as ReportImage
 from .models import BankProfile,Vacancy,Application
 from .forms import ApplicationForm
 def seed_demo_data():
@@ -38,7 +38,13 @@ def receipt_pdf(request,reference):
     app=get_application(reference); buffer=io.BytesIO(); doc=SimpleDocTemplate(buffer,pagesize=A4,rightMargin=18*mm,leftMargin=18*mm,topMargin=18*mm,bottomMargin=18*mm)
     styles=getSampleStyleSheet(); title=ParagraphStyle('DemoTitle',parent=styles['Title'],textColor=colors.HexColor('#12345b'),fontSize=18,spaceAfter=8); small=ParagraphStyle('SmallDemo',parent=styles['Normal'],textColor=colors.HexColor('#9b2c2c'),fontSize=9,alignment=1)
     story=[Paragraph('DEMO RECRUITMENT PORTAL',title),Paragraph('NOT AN OFFICIAL BANK WEBSITE · TEST RECEIPT ONLY',small),Spacer(1,8*mm),Paragraph(app.vacancy.bank.name,styles['Heading2']),Paragraph('Application receipt',styles['Heading1']),Paragraph(f'<b>Reference:</b> {app.reference}',styles['Normal']),Paragraph(f'<b>Submitted:</b> {timezone.localtime(app.submitted_at).strftime("%d %B %Y, %I:%M %p")}',styles['Normal']),Spacer(1,5*mm)]
-    rows=[['Field','Submitted demo information'],['Applicant',app.full_name],['Date of birth',app.date_of_birth.strftime('%d-%m-%Y')],['Gender',app.gender],['Location',f'{app.city}, {app.state}, {app.postal_code}, {app.country}'],['Email / Phone',f'{app.email or "Not provided"} / {app.phone or "Not provided"}'],['Qualification',f'{app.qualification} — {app.institution} ({app.passing_year})'],['Grade',app.grade or 'Not provided'],['Employment',f'{app.employment_status} — {app.experience or "Not specified"}'],['Organization',app.organization or 'Not provided'],['Skills',app.skills or 'Not provided'],['Recruitment',app.vacancy.title],['Department',app.vacancy.department],['Status','DEMO SUBMISSION RECORDED']]
+    rows=[['Field','Submitted demo information'],['Applicant',app.full_name],['Date of birth',app.date_of_birth.strftime('%d-%m-%Y')],['Gender',app.gender],['Location',f'{app.city}, {app.state}, {app.postal_code}, {app.country}'],['Email / Phone',f'{app.email or "Not provided"} / {app.phone or "Not provided"}'],['Qualification',f'{app.qualification} — {app.institution} ({app.passing_year})'],['Grade',app.grade or 'Not provided'],['Employment',f'{app.employment_status} — {app.experience or "Not specified"}'],['Organization',app.organization or 'Not provided'],['Skills',app.skills or 'Not provided'],['Recruitment',app.vacancy.title],['Department',app.vacancy.department],['Profile photo',app.photo.name.rsplit('/',1)[-1] if app.photo else 'Not uploaded'],['Supporting document',app.supporting_document.name.rsplit('/',1)[-1] if app.supporting_document else 'Not uploaded'],['Status','DEMO SUBMISSION RECORDED']]
     table=Table(rows,colWidths=[42*mm,125*mm],repeatRows=1); table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#12345b')),('TEXTCOLOR',(0,0),(-1,0),colors.white),('GRID',(0,0),(-1,-1),.4,colors.HexColor('#d7dee8')),('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,1),(0,-1),colors.HexColor('#f1f4f8')),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7)]))
-    story.extend([table,Spacer(1,8*mm),Paragraph('<b>DEMO NOTICE:</b> This is a demonstration application only. It has not been submitted to any actual bank, employer, or recruitment authority. No selection, approval, verification, or employment is implied.',styles['BodyText'])]); doc.build(story)
+    story.extend([table])
+    if app.photo:
+        try:
+            story.extend([Spacer(1,5*mm),Paragraph('Applicant photo (demo upload)',styles['Heading3']),ReportImage(app.photo.path,width=30*mm,height=35*mm,kind='proportional')])
+        except (OSError,ValueError):
+            story.append(Paragraph('Applicant photo: uploaded file could not be embedded.',styles['Normal']))
+    story.extend([Spacer(1,8*mm),Paragraph('<b>DEMO NOTICE:</b> This is a demonstration application only. It has not been submitted to any actual bank, employer, or recruitment authority. No selection, approval, verification, or employment is implied.',styles['BodyText'])]); doc.build(story)
     response=HttpResponse(buffer.getvalue(),content_type='application/pdf'); response['Content-Disposition']=f'attachment; filename="demo-application-{str(app.reference)[:8]}.pdf"'; return response
