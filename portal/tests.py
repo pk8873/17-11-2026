@@ -20,7 +20,9 @@ class RecruitmentDemoFlowTests(TestCase):
         self.assertEqual(self.client.get(reverse("vacancies")).status_code, 200)
 
     def test_application_submission_and_pdf_receipt(self):
+        self.client.get(reverse('apply', args=[self.vacancy.id]))
         payload = {
+            'submission_token': self.client.session.get('application_form_token'),
             "full_name": "Test Applicant",
             "date_of_birth": "1998-04-12",
             "gender": "Prefer not to say",
