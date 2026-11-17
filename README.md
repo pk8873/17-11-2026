@@ -18,6 +18,7 @@ py -3.12 -m venv .venv
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 python manage.py migrate
+python manage.py test
 python manage.py createsuperuser
 python manage.py runserver 127.0.0.1:8000
 ```
