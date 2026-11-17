@@ -1,4 +1,4 @@
-import io
+import io, uuid
 from django.contrib import messages
 from django.http import Http404,HttpResponse
 from django.shortcuts import get_object_or_404,redirect,render
@@ -25,11 +25,20 @@ def vacancies(request):
 def apply(request,vacancy_id):
     vacancy=get_object_or_404(Vacancy,pk=vacancy_id,active=True,bank__active=True)
     if request.method=='POST':
+        submitted_token=request.POST.get('submission_token','')
+        if not submitted_token or submitted_token != request.session.get('application_form_token'):
+            messages.error(request,'This form was already submitted or expired. Please start a fresh demo application.')
+            return redirect('apply',vacancy_id=vacancy.id)
         form=ApplicationForm(request.POST,request.FILES)
         if form.is_valid():
-            application=form.save(commit=False); application.vacancy=vacancy; application.save(); messages.success(request,'Your demo application has been recorded.'); return redirect('confirmation',reference=application.reference)
-    else: form=ApplicationForm()
-    return render(request,'portal/apply.html',{'form':form,'vacancy':vacancy})
+            application=form.save(commit=False); application.vacancy=vacancy; application.save()
+            request.session.pop('application_form_token',None)
+            messages.success(request,'Your demo application has been recorded.')
+            return redirect('confirmation',reference=application.reference)
+        token=submitted_token
+    else:
+        form=ApplicationForm(); token=uuid.uuid4().hex; request.session['application_form_token']=token
+    return render(request,'portal/apply.html',{'form':form,'vacancy':vacancy,'submission_token':token})
 def get_application(reference):
     try: return Application.objects.select_related('vacancy__bank').get(reference=reference)
     except (Application.DoesNotExist,ValueError): raise Http404('Demo application not found.')
